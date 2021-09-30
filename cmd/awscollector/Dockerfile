@@ -3,6 +3,7 @@
 #			       #	
 ################################
 FROM alpine:latest as build 
+ARG TARGETARCH
 
 # update cert
 RUN apk --update add ca-certificates
@@ -31,7 +32,8 @@ COPY Makefile /workspace/Makefile
 COPY config /workspace/config
 
 # build binary
-RUN make amd64-build
+RUN if [ $TARGETARCH = amd64 ]; then make amd64-build; mv /workspace/build/linux/aoc_linux_x86_64 /workspace/build/linux/build; fi
+RUN if [ $TARGETARCH = arm64 ]; then make arm64-build; mv /workspace/build/linux/aoc_linux_aarch64 /workspace/build/linux/build; fi
 
 ################################
 #	Final Stage            #	
@@ -40,7 +42,7 @@ RUN make amd64-build
 FROM scratch
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=build /workspace/build/linux/aoc_linux_x86_64 /awscollector
+COPY --from=build /workspace/build/linux/build /awscollector
 COPY --from=build /workspace/config.yaml /etc/otel-config.yaml
 COPY --from=build /workspace/config/eks/prometheus/config-appmesh.yaml /etc/eks/prometheus/config-appmesh.yaml
 COPY --from=build /workspace/config/eks/prometheus/config-haproxy.yaml /etc/eks/prometheus/config-haproxy.yaml
